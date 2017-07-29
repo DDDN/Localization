@@ -1,0 +1,2 @@
+# Localization
+DDDN Localization Library

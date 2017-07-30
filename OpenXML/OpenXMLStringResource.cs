@@ -15,36 +15,58 @@
 */
 
 using DDDN.Logging.Messages;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.IO;
+using System.Linq;
 
 namespace DDDN.Localization.OpenXML
 {
-	public class OpenXMLStringResource
+	public class OpenXMLStringResource : IOpenXMLStringResource
 	{
-		private CultureInfo ResourceCulturInfo;
-		private bool FallBackToNaturalCulture;
+		private string ResourceKey;
+		private string FilePath;
 
-		public OpenXMLStringResource(string filePathAndName, string cultureName, bool fallBackToNaturalCulture)
+		public OpenXMLStringResource(string resourceKey, string resourceFolderPath)
 		{
-			if (string.IsNullOrWhiteSpace(filePathAndName))
+			if (string.IsNullOrWhiteSpace(resourceKey))
 			{
-				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(filePathAndName));
+				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceKey));
 			}
 
-			if (string.IsNullOrWhiteSpace(cultureName))
+			if (string.IsNullOrWhiteSpace(resourceFolderPath))
 			{
-				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(cultureName));
+				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceFolderPath));
 			}
 
-			ResourceCulturInfo = new CultureInfo(cultureName);
-			FallBackToNaturalCulture = fallBackToNaturalCulture;
+			ResourceKey = resourceKey;
+			FilePath = resourceFolderPath;
 		}
 
 		public Dictionary<string, string> GetStrings()
 		{
 			var ret = new Dictionary<string, string>();
+			var resourcefileFullPaths = Directory.GetFiles(FilePath, $"{ResourceKey}.*");
+
+			foreach (var fileFullPath in resourcefileFullPaths)
+			{
+				var fileName = Path.GetFileNameWithoutExtension(fileFullPath);
+				var cultureNameFromFileName = fileName.Replace($"{ResourceKey}.", "");
+
+				using (WordprocessingDocument openXMLDoc = WordprocessingDocument.Open(fileFullPath, false))
+				{
+					var firstTable = openXMLDoc.MainDocumentPart.Document.Body.Elements<Table>().First();
+
+					foreach (var row in firstTable.Elements<TableRow>().Skip(1))
+					{
+						var translationKey = row.Elements<TableCell>().First().InnerText;
+						var translation = row.Elements<TableCell>().Skip(1).First().InnerText;
+						ret.Add($"{translationKey}.{cultureNameFromFileName}", translation);
+					}
+				}
+			}
 
 			return ret;
 		}

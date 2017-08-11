@@ -5,4 +5,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DDDN.Localization.OpenXML\DDDN.Localization.OpenXML.csproj" />
+  </ItemGroup>
+
 </Project>

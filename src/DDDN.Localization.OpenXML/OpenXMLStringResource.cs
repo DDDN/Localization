@@ -24,51 +24,57 @@ using System.Linq;
 
 namespace DDDN.Localization.OpenXML
 {
-    public class OpenXMLStringResource : IOpenXMLStringResource
-    {
-        private string ResourceKey;
-        private string FilePath;
+	public class OpenXMLStringResource : IOpenXMLStringResource
+	{
+		private string ResourceKey;
+		private string ResourceFolderPath;
 
-        public OpenXMLStringResource(string resourceKey, string resourceFolderPath)
-        {
-            if (string.IsNullOrWhiteSpace(resourceKey))
-            {
-                throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceKey));
-            }
+		public OpenXMLStringResource(string resourceKey, string resourceFolderPath)
+		{
+			if (string.IsNullOrWhiteSpace(resourceKey))
+			{
+				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceKey));
+			}
 
-            if (string.IsNullOrWhiteSpace(resourceFolderPath))
-            {
-                throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceFolderPath));
-            }
+			if (string.IsNullOrWhiteSpace(resourceFolderPath))
+			{
+				throw new ArgumentException(LogMsg.StrArgNullOrWhite, nameof(resourceFolderPath));
+			}
 
-            ResourceKey = resourceKey;
-            FilePath = resourceFolderPath;
-        }
+			ResourceKey = resourceKey;
+			ResourceFolderPath = resourceFolderPath;
+		}
 
-        public Dictionary<string, string> GetStrings()
-        {
-            var ret = new Dictionary<string, string>();
-            var resourcefileFullPaths = Directory.GetFiles(FilePath, $"{ResourceKey}.*");
+		public Dictionary<string, string> GetStrings()
+		{
+			var ret = new Dictionary<string, string>();
+			var lastPointIndex = ResourceKey.LastIndexOf('.');
+			var docxFileName = ResourceKey.Substring(lastPointIndex + 1);
+			var l10nPath = Path.Combine(
+				ResourceFolderPath,
+				ResourceKey.Remove(lastPointIndex).Replace('.', '\\'),
+				"l10n");
 
-            foreach (var fileFullPath in resourcefileFullPaths)
-            {
-                var fileName = Path.GetFileNameWithoutExtension(fileFullPath);
-                var cultureNameFromFileName = fileName.Replace($"{ResourceKey}.", "");
+			var resourcefileFullPaths = Directory.GetFiles(l10nPath, $"{docxFileName}.*");
 
-                using (WordprocessingDocument openXMLDoc = WordprocessingDocument.Open(fileFullPath, false))
-                {
-                    var firstTable = openXMLDoc.MainDocumentPart.Document.Body.Elements<Table>().First();
+			foreach (var fileFullPath in resourcefileFullPaths)
+			{
+				var cultureNameFromFileName = Path.GetFileNameWithoutExtension(fileFullPath).Split('.').Last();
 
-                    foreach (var row in firstTable.Elements<TableRow>().Skip(1))
-                    {
-                        var translationKey = row.Elements<TableCell>().First().InnerText;
-                        var translation = row.Elements<TableCell>().Skip(1).First().InnerText;
-                        ret.Add($"{translationKey}.{cultureNameFromFileName}", translation);
-                    }
-                }
-            }
+				using (WordprocessingDocument openXMLDoc = WordprocessingDocument.Open(fileFullPath, false))
+				{
+					var firstTable = openXMLDoc.MainDocumentPart.Document.Body.Elements<Table>().First();
 
-            return ret;
-        }
-    }
+					foreach (var row in firstTable.Elements<TableRow>().Skip(1))
+					{
+						var translationKey = row.Elements<TableCell>().First().InnerText;
+						var translation = row.Elements<TableCell>().Skip(1).First().InnerText;
+						ret.Add($"{translationKey}.{cultureNameFromFileName}", translation);
+					}
+				}
+			}
+
+			return ret;
+		}
+	}
 }
